@@ -1,16 +1,28 @@
-from flask import Flask, jsonify
-# import random
+from flask import Flask, jsonify, request
 import pyaudio
 import wave
-# from openai import OpenAI
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 from groq import Groq
+
+# Initialize Flask app
 app = Flask(__name__)
-cors = CORS(app, supports_credentials=True)
+
+# Configure CORS
+CORS(app, 
+     origins=["http://localhost:5173", "http://localhost:3000"],
+     supports_credentials=True,
+     methods=["GET", "POST", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"])
+
+# Load environment variables
 load_dotenv()
 OPEN_API_KEY = os.getenv('OPEN_API_KEY')
+
+# Validate API key
+if not OPEN_API_KEY:
+    print("WARNING: OPEN_API_KEY not found in environment variables!")
 COUPLED = ""
 SOUND_REFERENCE = {
     'S': 'SH',
@@ -24,8 +36,14 @@ SOUND_REFERENCE = {
 }
 
 IMAGE ={
-     'A' : 'https://png.pngtree.com/png-vector/20231017/ourmid/pngtree-fresh-apple-fruit-red-png-image_10203073.png',
-     "Z" : 'https://pngimg.com/uploads/zebra/zebra_PNG95977.png'
+     'S': 'https://cdn-icons-png.flaticon.com/512/1995/1995471.png',  # Sun
+     'F': 'https://cdn-icons-png.flaticon.com/512/2917/2917995.png',  # Freedom/flag
+     'L': 'https://cdn-icons-png.flaticon.com/512/1077/1077035.png',  # Love/heart
+     'B': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png',  # Ball
+     'P': 'https://cdn-icons-png.flaticon.com/512/2541/2541979.png',  # Pen
+     'T': 'https://cdn-icons-png.flaticon.com/512/628/628283.png',  # Tree
+     'A': 'https://png.pngtree.com/png-vector/20231017/ourmid/pngtree-fresh-apple-fruit-red-png-image_10203073.png',
+     'Z': 'https://pngimg.com/uploads/zebra/zebra_PNG95977.png'
 }
 
 PRONUNCIATION = {
@@ -133,81 +151,125 @@ def check(word_given, word_recieved, check_for):
 #     )
 #     print(transcription.text)
       
-@app.route('/record', methods=["GET"])
+@app.route('/record', methods=["GET", "POST"])
 def record():
-    chunk = 1024  # Record in chunks of 1024 samples
-    sample_format = pyaudio.paInt16  # 16 bits per sample
-    channels = 2
-    fs = 44100  # Record at 44100 samples per second
-    seconds = 5
-    filename = "output.wav"
+    try:
+        if not COUPLED:
+            return jsonify({"error": "No letter selected. Please call /test/<letter> first"}), 400
+            
+        chunk = 1024  # Record in chunks of 1024 samples
+        sample_format = pyaudio.paInt16  # 16 bits per sample
+        channels = 2
+        fs = 44100  # Record at 44100 samples per second
+        seconds = 5
+        filename = "output.wav"
 
-    p = pyaudio.PyAudio()  # Create an interface to PortAudio
+        p = pyaudio.PyAudio()  # Create an interface to PortAudio
 
-    print('Recording')
+        print('Recording...')
 
-    stream = p.open(format=sample_format,
-                    channels=channels,
-                    rate=fs,
-                    frames_per_buffer=chunk,
-                    input=True)
+        stream = p.open(format=sample_format,
+                        channels=channels,
+                        rate=fs,
+                        frames_per_buffer=chunk,
+                        input=True)
 
-    frames = []  # Initialize array to store frames
+        frames = []  # Initialize array to store frames
 
-    # Store data in chunks for 3 seconds
-    for i in range(0, int(fs / chunk * seconds)):
-        data = stream.read(chunk)
-        frames.append(data)
+        # Store data in chunks for 5 seconds
+        for i in range(0, int(fs / chunk * seconds)):
+            data = stream.read(chunk)
+            frames.append(data)
 
-    # Stop and close the stream
-    stream.stop_stream()
-    stream.close()
-    # Terminate the PortAudio interface
-    p.terminate()
+        # Stop and close the stream
+        stream.stop_stream()
+        stream.close()
+        # Terminate the PortAudio interface
+        p.terminate()
 
-    print('Finished recording')
+        print('Finished recording')
 
-    # Save the recorded data as a WAV file
-    wf = wave.open(filename, 'wb')
-    wf.setnchannels(channels)
-    wf.setsampwidth(p.get_sample_size(sample_format))
-    wf.setframerate(fs)
-    wf.writeframes(b''.join(frames))
-    wf.close()
+        # Save the recorded data as a WAV file
+        wf = wave.open(filename, 'wb')
+        wf.setnchannels(channels)
+        wf.setsampwidth(p.get_sample_size(sample_format))
+        wf.setframerate(fs)
+        wf.writeframes(b''.join(frames))
+        wf.close()
 
-    # client = OpenAI(api_key=OPEN_API_KEY)
-    client = Groq(api_key=OPEN_API_KEY)
+        # Initialize Groq client
+        if not OPEN_API_KEY:
+            return jsonify({"error": "API key not configured"}), 500
+            
+        client = Groq(api_key=OPEN_API_KEY)
 
-    # audio_file = open(, "rb")
-    with open("output.wav", "rb") as file:
-        transcription = client.audio.transcriptions.create(
-        file=(filename, file.read()),
-        model="distil-whisper-large-v3-en",
-        response_format="verbose_json",
-        )
-    print(transcription.text)
-    percentage = check(EXAMPLE[COUPLED].upper(), transcription.text.upper(), COUPLED.upper())
+        # Transcribe audio
+        with open("output.wav", "rb") as file:
+            transcription = client.audio.transcriptions.create(
+                file=(filename, file.read()),
+                model="distil-whisper-large-v3-en",
+                response_format="verbose_json",
+            )
+        
+        print(f"Transcription: {transcription.text}")
+        
+        # Calculate percentage
+        percentage = check(EXAMPLE[COUPLED].upper(), transcription.text.upper(), COUPLED.upper())
 
-    print(percentage)
-    word_percentage = {
-        "transcript": transcription.text,
-        "percentage": percentage
-    }
-    return jsonify(word_percentage)
+        print(f"Percentage: {percentage}")
+        
+        word_percentage = {
+            "transcript": transcription.text,
+            "percentage": percentage
+        }
+        
+        return jsonify(word_percentage)
+        
+    except Exception as e:
+        print(f"Error in record endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/remedy/<int:averagePercentage>", methods=["GET", "POST"])
 def remedy(averagePercentage):
-    if (averagePercentage<=50):
-        result = {
-            "remedy":REMEDY[COUPLED]
-        }
-    else:
-        result = {
-            "remedy":""
-        }
+    try:
+        if not COUPLED:
+            return jsonify({"error": "No letter selected"}), 400
+            
+        if averagePercentage <= 50:
+            remedy_text = REMEDY.get(COUPLED, ["Practice the pronunciation more carefully."])
+            result = {
+                "remedy": remedy_text
+            }
+        else:
+            result = {
+                "remedy": ""
+            }
 
-    return jsonify(result)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error in remedy endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# Health check endpoint
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "status": "healthy",
+        "service": "phonemes-backend",
+        "port": 5002,
+        "api_key_configured": bool(OPEN_API_KEY)
+    })
+
+
+# Get all available letters
+@app.route("/letters", methods=["GET"])
+def get_letters():
+    return jsonify({
+        "letters": LETTERS,
+        "examples": EXAMPLE
+    })
 
 
 @app.route("/test/<lettergiven>")
@@ -216,26 +278,25 @@ def test(lettergiven):
     global COUPLED
     COUPLED = ""
     COUPLED = lettergiven
-    if lettergiven=="B":
-         
+    
+    try:
+        # Get the example word for this letter
+        example_word = EXAMPLE.get(COUPLED)
+        if not example_word:
+            return jsonify({"error": f"No example found for letter {COUPLED}"}), 404
+        
         word_data = {
-            "word1": "ball",
-            "letter": 'B',
-            "pronunciation":"bɔːl",
-            "image_link": 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'
-
+            "word1": example_word,
+            "letter": COUPLED,
+            "pronunciation": PRONUNCIATION.get(example_word, ""),
+            "image_link": IMAGE.get(COUPLED, "")
         }
-    else:
-         word_data = {
-        "word1": EXAMPLE[COUPLED],
-        "letter": COUPLED,
-        "pronunciation": PRONUNCIATION[EXAMPLE[COUPLED[0]]],
-        "image_link": IMAGE[COUPLED]
-
-    }
-         
-    print(COUPLED)
-    return jsonify(word_data)
+        
+        print(COUPLED)
+        return jsonify(word_data)
+    except Exception as e:
+        print(f"Error in test endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/generate_word/<lettergiven>")
 def generate_word(lettergiven):
@@ -243,17 +304,25 @@ def generate_word(lettergiven):
     global COUPLED
     COUPLED = ""
     COUPLED = lettergiven
-
-    word_data = {
-        "word1": EXAMPLE[COUPLED],
-        "letter": COUPLED,
-        "pronunciation": PRONUNCIATION[EXAMPLE[COUPLED[0]]]
-        # "image_link": IMAGE[COUPLED]
-
-    }
-    print(COUPLED)
-    return jsonify(word_data)
+    
+    try:
+        # Get the example word for this letter
+        example_word = EXAMPLE.get(COUPLED)
+        if not example_word:
+            return jsonify({"error": f"No example found for letter {COUPLED}"}), 404
+        
+        word_data = {
+            "word1": example_word,
+            "letter": COUPLED,
+            "pronunciation": PRONUNCIATION.get(example_word, "")
+        }
+        
+        print(COUPLED)
+        return jsonify(word_data)
+    except Exception as e:
+        print(f"Error in generate_word endpoint: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5002)  # Using port 5002 to avoid conflicts with other backends
