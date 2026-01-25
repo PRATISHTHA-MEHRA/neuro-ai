@@ -1,8 +1,14 @@
 import React, { useState } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../contexts/AuthContext";
 
 const Modal = ({ isOpen, onClose }) => {
-  const { logout } = useAuth0();
+  const { logout } = useAuth();
+  
+  const handleLogout = () => {
+    logout();
+    onClose();
+  };
+  
   if (!isOpen) return null;
   return (
     <div
@@ -14,9 +20,7 @@ const Modal = ({ isOpen, onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={() =>
-            logout({ logoutParams: { returnTo: window.location.origin } })
-          }
+          onClick={handleLogout}
           className="bg-red-500 text-white px-4 py-2 rounded"
         >
           Logout

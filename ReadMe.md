@@ -35,3 +35,72 @@ NeuroAi is tailored to support students with the following neurological and deve
 ---
 
 NeuroAi is more than just a learning platform; it's a comprehensive support system that empowers neurodiverse students to achieve their full potential.
+
+## Project Structure
+
+```
+neuro-ai/
+├── frontend/              # React web application
+├── mobile-app/           # React Native mobile app
+└── backend/
+    ├── server/           # Node.js/Express backend (Auth, APIs, MongoDB)
+    ├── phonemes-backend/ # Python ML service for phoneme detection
+    └── streamlit-chatbot/# Python chatbot service
+```
+
+## Backend Architecture
+
+### Node.js Backend (Port 5000)
+- **Purpose**: Main application backend
+- **Handles**: Authentication, user management, general APIs
+- **Database**: MongoDB
+- **Tech**: Express.js, JWT, Mongoose
+
+### Python Services (ML-Only)
+1. **Phoneme Detection** (Port 8001) - ML-based audio analysis
+2. **Chatbot** (Port 8501) - NLP-powered conversational interface
+
+## Getting Started
+
+### 1. Start Node.js Backend
+```bash
+cd backend/server
+npm install
+cp .env.example .env
+# Configure MongoDB URI and JWT secret in .env
+npm run dev
+```
+
+### 2. Start Python Services (Optional - only for ML features)
+```bash
+# Phoneme Detection
+cd backend/phonemes-backend
+pip install -r requirements.txt
+python main.py
+
+# Chatbot
+cd backend/streamlit-chatbot
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+### 3. Start Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. Start Mobile App (Optional)
+```bash
+cd mobile-app
+npm install
+npm start
+```
+
+## Tech Stack
+
+**Frontend**: React, TailwindCSS, Vite  
+**Mobile**: React Native, Expo  
+**Backend**: Node.js, Express, MongoDB  
+**ML Services**: Python, FastAPI, Streamlit

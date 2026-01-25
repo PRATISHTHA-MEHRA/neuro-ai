@@ -9,19 +9,21 @@ import RealTIme from "../assets/RealTIme.png";
 import Dimensional from "../assets/threeDimensional.png";
 import Illustration from "../assets/Illustration.png";
 import Contact from "../assets/Contact Us.png";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import AuthModal from "../Components/AuthModal";
 
 export default function Home() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading } = useAuth0();
-  const { loginWithRedirect } = useAuth0();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
   const getstarted = () => {
     if (isAuthenticated) {
       navigate("/learning");
     } else {
-      loginWithRedirect();
+      setIsAuthModalOpen(true);
     }
   };
   const mySectionRef = useRef(null);
@@ -317,6 +319,11 @@ export default function Home() {
           </div>
         </div>
       </div>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        mode="signup"
+      />
     </div>
   );
 }

@@ -45,7 +45,9 @@ export const FONTS = {
 
 export const API_BASE_URL = 'http://localhost:5000';
 
-export const AUTH0_CONFIG = {
-  domain: 'dev-iabl8uxrj8a06ze7.us.auth0.com',
-  clientId: 'y4URVw5F6jq0Aan5rsMzbyRspDpHQXdg',
-};
+// Authentication API URL (Node.js backend)
+export const AUTH_API_URL = 'http://localhost:5000/api/auth';
+
+// Python ML services
+export const PHONEME_API_URL = 'http://localhost:8001';
+export const CHATBOT_URL = 'http://localhost:8501';

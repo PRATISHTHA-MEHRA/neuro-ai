@@ -2,44 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH0_CONFIG } from './src/constants/theme';
+import { AUTH_API_URL } from './src/constants/theme';
 import AppNavigator from './src/navigation/AppNavigator';
-
-WebBrowser.maybeCompleteAuthSession();
-
-// Auth0 Configuration
-const auth0Domain = AUTH0_CONFIG.domain;
-const auth0ClientId = AUTH0_CONFIG.clientId;
-
-const useProxy = true;
-const redirectUri = AuthSession.makeRedirectUri({ useProxy });
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
-
-  const discovery = {
-    authorizationEndpoint: `https://${auth0Domain}/authorize`,
-    tokenEndpoint: `https://${auth0Domain}/oauth/token`,
-    revocationEndpoint: `https://${auth0Domain}/oauth/revoke`,
-  };
-
-  const [request, result, promptAsync] = AuthSession.useAuthRequest(
-    {
-      redirectUri,
-      clientId: auth0ClientId,
-      responseType: AuthSession.ResponseType.Token,
-      scopes: ['openid', 'profile', 'email'],
-      extraParams: {
-        nonce: 'nonce',
-      },
-    },
-    discovery
-  );
+  const [token, setToken] = useState(null);
 
   // Check for existing auth on mount
   useEffect(() => {
@@ -48,70 +18,108 @@ export default function App() {
 
   const checkAuth = async () => {
     try {
-      const storedToken = await AsyncStorage.getItem('accessToken');
+      const storedToken = await AsyncStorage.getItem('token');
       const storedUser = await AsyncStorage.getItem('user');
       
       if (storedToken && storedUser) {
-        setAccessToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true);
+        // Verify token with backend
+        const response = await fetch(`${AUTH_API_URL}/verify`, {
+          headers: {
+            'Authorization': `Bearer ${storedToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+          setIsAuthenticated(true);
+        } else {
+          // Token invalid, clear storage
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('user');
+        }
       }
     } catch (error) {
       console.error('Error checking auth:', error);
     }
   };
 
-  // Handle auth result
-  useEffect(() => {
-    if (result) {
-      if (result.type === 'success') {
-        const { access_token } = result.params;
-        setAccessToken(access_token);
-        
-        // Get user info
-        getUserInfo(access_token);
-      }
-    }
-  }, [result]);
-
-  const getUserInfo = async (token) => {
+  const handleLogin = async (email, password) => {
     try {
-      const response = await fetch(`https://${auth0Domain}/userinfo`, {
+      const response = await fetch(`${AUTH_API_URL}/login`, {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ email, password }),
       });
-      const userInfo = await response.json();
-      
-      setUser(userInfo);
-      setIsAuthenticated(true);
-      
-      // Store auth data
-      await AsyncStorage.setItem('accessToken', token);
-      await AsyncStorage.setItem('user', JSON.stringify(userInfo));
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setToken(data.token);
+        setUser(data.user);
+        setIsAuthenticated(true);
+        
+        await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        
+        return { success: true };
+      } else {
+        return { success: false, error: data.message };
+      }
     } catch (error) {
-      console.error('Error getting user info:', error);
+      console.error('Error logging in:', error);
+      return { success: false, error: 'Network error' };
     }
   };
 
-  const handleLogin = () => {
-    promptAsync({ useProxy });
+  const handleSignup = async (name, email, password, phoneNumber, childAge, region, problemDescription) => {
+    try {
+      const response = await fetch(`${AUTH_API_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          phoneNumber,
+          childAge,
+          region,
+          problemDescription,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setToken(data.token);
+        setUser(data.user);
+        setIsAuthenticated(true);
+        
+        await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        
+        return { success: true };
+      } else {
+        return { success: false, error: data.message };
+      }
+    } catch (error) {
+      console.error('Error signing up:', error);
+      return { success: false, error: 'Network error' };
+    }
   };
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      setAccessToken(null);
+      setToken(null);
       setUser(null);
       setIsAuthenticated(false);
-      
-      // Optionally revoke token
-      if (accessToken) {
-        await WebBrowser.openAuthSessionAsync(
-          `https://${auth0Domain}/v2/logout?client_id=${auth0ClientId}&returnTo=${redirectUri}`
-        );
-      }
     } catch (error) {
       console.error('Error logging out:', error);
     }
@@ -124,7 +132,9 @@ export default function App() {
         <AppNavigator 
           isAuthenticated={isAuthenticated}
           user={user}
+          token={token}
           onLogin={handleLogin}
+          onSignup={handleSignup}
           onLogout={handleLogout}
         />
       </NavigationContainer>

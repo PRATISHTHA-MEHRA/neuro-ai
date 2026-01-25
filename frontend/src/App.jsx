@@ -8,24 +8,23 @@ import Articles from "./Pages/Articles";
 import Detection from "./Pages/Detection"
 import Overalltest from "./Pages/Overalltest";
 import Coursetest from "./Pages/Coursetest";
-import { ThemeProvider } from "./context/ThemeContext";
+import Chatbot from "./Pages/Chatbot";
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <BrowserRouter>
-        <Nav />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/learning" element={<Learning />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/articles" element={<Articles />} />
-          <Route path="/detect/:number" element={<Detection />} />
-          <Route path="/overall" element={<Overalltest />} />
-          <Route path="/course" element={<Coursetest />} />
-        </Routes>
-        <Footer />
-      </BrowserRouter>
-    </ThemeProvider>
+    <BrowserRouter>
+      <Nav />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/learning" element={<Learning />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/articles" element={<Articles />} />
+        <Route path="/detect/:number" element={<Detection />} />
+        <Route path="/overall" element={<Overalltest />} />
+        <Route path="/course" element={<Coursetest />} />
+        <Route path="/chatbot" element={<Chatbot />} />
+      </Routes>
+      <Footer />
+    </BrowserRouter>
   );
 }

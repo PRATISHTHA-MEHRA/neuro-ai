@@ -24,3 +24,10 @@ dist-ssr
 *.sln
 *.sw?
 test.mp4
+
+# Python
+apikey.py
+*.mp3
+*.pdf
+__pycache__/
+*.pyc

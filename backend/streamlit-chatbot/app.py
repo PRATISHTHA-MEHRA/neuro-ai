@@ -1,12 +1,7 @@
 import streamlit as st
 from groq import Groq
 from apikey import GROQ_API_KEY
-import speech_recognition as sr
-import pyttsx3
 import io
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Preformatted
@@ -14,18 +9,11 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Preformatte
 # Initialize the Groq client
 client = Groq(api_key=GROQ_API_KEY)
 
-# Initialize the text-to-speech engine
-engine = pyttsx3.init()
-
 # Initialize conversation history and input state in Streamlit session state
 if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'user_input' not in st.session_state:
     st.session_state.user_input = ""
-if 'audio_file' not in st.session_state:
-    st.session_state.audio_file = 'response.mp3'  # Default filename for audio
-if 'listening' not in st.session_state:
-    st.session_state.listening = False  # Track listening state
 
 def generate_response(user_input):
     """Generate a response using Llama 3 and maintain conversation context."""
@@ -34,7 +22,7 @@ def generate_response(user_input):
 
     # Create a completion with the conversation history
     completion = client.chat.completions.create(
-        model="llama3-8b-8192",
+        model="llama-3.3-70b-versatile",
         messages=st.session_state.conversation_history,  # Send the entire conversation history
         temperature=0.7,
         max_tokens=150,
@@ -53,15 +41,6 @@ def generate_response(user_input):
     st.session_state.conversation_history.append({"role": "assistant", "content": response_text})
 
     return response_text
-
-def speak_text(text):
-    """Convert text to speech and save it to a file."""
-    audio_filename = st.session_state.audio_file
-    engine.save_to_file(text, audio_filename)
-    engine.runAndWait()
-    with open(audio_filename, 'rb') as audio_file:
-        audio_data = audio_file.read()
-    return audio_data
 
 def generate_analysis_report():
     """Generate a brief report on behavior and learning based on the conversation history."""
@@ -203,53 +182,21 @@ def main():
     chat_html += '</div>'
     st.markdown(chat_html, unsafe_allow_html=True)
 
-    st.subheader("Speak to the chatbot")
-
-    status_placeholder = st.empty()
-
-    if st.button("Start Listening"):
-        st.session_state.listening = True
-        status_placeholder.text("Listening...")
-        recognizer = sr.Recognizer()
-        with sr.Microphone() as source:
-            audio = recognizer.listen(source)
-            try:
-                st.session_state.user_input = recognizer.recognize_google(audio)
-                st.write(f"You said: {st.session_state.user_input}")
-                if st.session_state.user_input:
-                    response = generate_response(st.session_state.user_input)
-                    st.session_state.user_input = ""  # Clear input after sending
-                    audio_data = speak_text(response)
-                    st.audio(io.BytesIO(audio_data), format="audio/mp3")
-                    st.session_state.listening = False
-                    status_placeholder.empty()  # Clear the status message
-            except sr.UnknownValueError:
-                st.write("Sorry, I could not understand the audio.")
-                st.session_state.listening = False
-                status_placeholder.empty()  # Clear the status message
-            except sr.RequestError:
-                st.write("Sorry, there was an error with the speech recognition service.")
-                st.session_state.listening = False
-                status_placeholder.empty()  # Clear the status message
+    st.subheader("Type your message")
+    
+    # Use form to handle Enter key and clear input
+    with st.form(key="chat_form", clear_on_submit=True):
+        user_text = st.text_input("Your message:", key="text_input", placeholder="Type your message here...")
+        submit_button = st.form_submit_button("Send", type="primary")
+        
+        if submit_button and user_text:
+            response = generate_response(user_text)
+            st.rerun()  # Refresh to show new message
 
     if st.button("Generate Analysis Report"):
         pdf_data, filename = generate_analysis_report()
         if pdf_data:
             st.download_button("Download Report", data=pdf_data, file_name=filename, mime="application/pdf")
-
-    st.markdown("""
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const input = document.querySelector('input[type="text"]');
-            const button = document.querySelector('button[data-baseweb="button"]');
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    button.click();
-                }
-            });
-        });
-        </script>
-    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
