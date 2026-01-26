@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
+import contactRoutes from './routes/contact.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -26,6 +27,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.use(errorHandler);
 
