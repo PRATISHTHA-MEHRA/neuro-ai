@@ -287,7 +287,7 @@ const AuthScreen = ({ route }) => {
                 </Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter age (1-18)"
+                  placeholder="Enter age (1-10)"
                   value={formData.childAge}
                   onChangeText={(value) => handleChange('childAge', value)}
                   keyboardType="number-pad"

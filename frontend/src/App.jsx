@@ -9,6 +9,7 @@ import Detection from "./Pages/Detection";
 import Home from "./Pages/Home";
 import Learning from "./Pages/Learning";
 import Overalltest from "./Pages/Overalltest";
+import TestDashboard from "./Pages/TestDashboard";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 export default function App() {
@@ -23,6 +24,8 @@ export default function App() {
                     <Route path="/articles" element={<Articles />} />
                     <Route path="/detect/:number" element={<Detection />} />
                     <Route path="/overall" element={<Overalltest />} />
+                    <Route path="/overalltest" element={<Overalltest />} />
+                    <Route path="/dashboard" element={<TestDashboard />} />
                     <Route path="/course" element={<Coursetest />} />
                     <Route path="/chatbot" element={<Chatbot />} />
                 </Routes>

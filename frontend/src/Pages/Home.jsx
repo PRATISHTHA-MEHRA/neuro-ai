@@ -19,6 +19,17 @@ export default function Home() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
+  // Contact form state
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    message: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  
   const getstarted = () => {
     if (isAuthenticated) {
       navigate("/learning");
@@ -31,8 +42,88 @@ export default function Home() {
     mySectionRef.current.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Show success notification
+        setNotification({
+          show: true,
+          message: 'Message sent successfully!',
+          type: 'success'
+        });
+
+        // Clear form fields
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phoneNumber: '',
+          message: ''
+        });
+
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+          setNotification({ show: false, message: '', type: '' });
+        }, 3000);
+      } else {
+        setNotification({
+          show: true,
+          message: data.message || 'Failed to send message',
+          type: 'error'
+        });
+        setTimeout(() => {
+          setNotification({ show: false, message: '', type: '' });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setNotification({
+        show: true,
+        message: 'An error occurred. Please try again.',
+        type: 'error'
+      });
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 3000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="dark:bg-gray-900">
+      {/* Notification */}
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${
+          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white font-spacegroteskmedium animate-slide-in`}>
+          {notification.message}
+        </div>
+      )}
+      
       <div className="lg:grid-cols-2 grid grid-cols-1">
         <div className="flex flex-col lg:pl-20 justify-center">
           <div>
@@ -271,49 +362,68 @@ export default function Home() {
                     Connect With Us
                   </div>
                 </div>
-                <div>
+                <form onSubmit={handleSubmit}>
                   <div className="flex flex-col lg:flex-row md:flex-row lg:justify-between md:justify-between">
                     <input
                       className="px-4 py-3 lg:w-full md:w-full outline-none font-spacegrotesksemibold m-3 rounded-lg border-2 transition-colors duration-100 border-solid focus:border-[#596A95] border-[#2B3040] dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                      name="text"
+                      name="firstName"
                       placeholder="First Name"
                       type="text"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      required
                     />
 
                     <input
                       className="px-4 py-3 lg:w-full md:w-full outline-none m-3 font-spacegrotesksemibold rounded-lg border-2 transition-colors duration-100 border-solid focus:border-[#596A95] border-[#2B3040] dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                      name="text"
+                      name="lastName"
                       placeholder="Last Name"
                       type="text"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      required
                     />
                   </div>
                   <div className="flex flex-col">
                     <input
                       className="px-4 py-3 outline-none m-3 font-spacegrotesksemibold rounded-lg border-2 transition-colors duration-100 border-solid focus:border-[#596A95] border-[#2B3040] dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                      name="text"
+                      name="email"
                       placeholder="Email"
-                      type="text"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
                     />
                     <input
                       className="px-4 py-3 outline-none m-3 font-spacegrotesksemibold rounded-lg border-2 transition-colors duration-100 border-solid focus:border-[#596A95] border-[#2B3040] dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                      name="text"
+                      name="phoneNumber"
                       placeholder="Phone Number"
-                      type="text"
+                      type="tel"
+                      value={formData.phoneNumber}
+                      onChange={handleInputChange}
+                      required
                     />
 
                     <input
                       className="px-4 py-3 outline-none m-3  font-spacegrotesksemibold rounded-lg border-2 transition-colors duration-100 border-solid focus:border-[#596A95] border-[#2B3040] dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                      name="text"
+                      name="message"
                       placeholder="Message"
                       type="text"
+                      value={formData.message}
+                      onChange={handleInputChange}
+                      required
                     />
                     <div className="flex justify-items-center">
-                      <button className="bg-[#89D85D] border-[#89D85D] w-full px-4 py-3 m-3 font-spacegrotesksemibold rounded-lg border-2 transition-colors duration-100 border-solid focus:border-[#596A95]">
-                        Send the message →
+                      <button 
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="bg-[#89D85D] border-[#89D85D] w-full px-4 py-3 m-3 font-spacegrotesksemibold rounded-lg border-2 transition-colors duration-100 border-solid focus:border-[#596A95] hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSubmitting ? 'Sending...' : 'Send the message →'}
                       </button>
                     </div>
                   </div>
-                </div>
+                </form>
               </div>
             </div>
           </div>
