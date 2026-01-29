@@ -3,12 +3,14 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext(null);
 
+// UPDATED: Use production backend URL
 const API_URL = "https://neuro-ai-3ipn.onrender.com/api";
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         loadStoredAuth();
@@ -53,26 +55,53 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (email, password) => {
+        console.log("=== LOGIN ATTEMPT ===");
+        console.log("Email:", email);
+        console.log("API URL:", `${API_URL}/auth/login`);
+
         setIsLoading(true);
+        setError(null);
+
         try {
+            const requestBody = { email, password };
+            console.log("Request body:", requestBody);
+
             const response = await fetch(`${API_URL}/auth/login`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestBody),
             });
 
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Login failed");
+            console.log("Response status:", response.status);
+            console.log("Response headers:", response.headers);
 
+            const data = await response.json();
+            console.log("Response data:", data);
+
+            if (!response.ok) {
+                console.error("Login failed:", data.message);
+                throw new Error(data.message || "Login failed");
+            }
+
+            // Store token and user data
+            console.log("Storing token and user data...");
             await AsyncStorage.setItem("token", data.token);
             await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
             setToken(data.token);
             setUser(data.user);
 
+            console.log("✅ LOGIN SUCCESSFUL");
+            console.log("User:", data.user);
             return { success: true };
         } catch (err) {
-            return { success: false, error: err.message };
+            const message = err.message || "Login failed. Please try again.";
+            console.error("❌ LOGIN FAILED:", message);
+            console.error("Error details:", err);
+            setError(message);
+            return { success: false, error: message };
         } finally {
             setIsLoading(false);
         }
@@ -85,36 +114,68 @@ export const AuthProvider = ({ children }) => {
         phoneNumber,
         childAge,
         region,
-        problemDescription,
+        problemDescription
     ) => {
+        console.log("=== SIGNUP ATTEMPT ===");
+        console.log("Name:", name);
+        console.log("Email:", email);
+        console.log("Phone:", phoneNumber);
+        console.log("Child Age:", childAge);
+        console.log("Region:", region);
+        console.log("Problem:", problemDescription);
+        console.log("API URL:", `${API_URL}/auth/register`);
+
         setIsLoading(true);
+        setError(null);
+
         try {
-            const response = await fetch(`${API_URL}/auth/signup`, {
+            const requestBody = {
+                name,
+                email,
+                password,
+                phoneNumber,
+                childAge,
+                region,
+                problemDescription,
+            };
+            console.log("Request body:", requestBody);
+
+            const response = await fetch(`${API_URL}/auth/register`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name,
-                    email,
-                    password,
-                    phoneNumber,
-                    childAge,
-                    region,
-                    problemDescription,
-                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestBody),
             });
 
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Signup failed");
+            console.log("Response status:", response.status);
+            console.log("Response headers:", response.headers);
 
+            const data = await response.json();
+            console.log("Response data:", data);
+
+            if (!response.ok) {
+                console.error("Signup failed:", data.message);
+                throw new Error(data.message || "Signup failed");
+            }
+
+            // Store token and user data
+            console.log("Storing token and user data...");
             await AsyncStorage.setItem("token", data.token);
             await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
             setToken(data.token);
             setUser(data.user);
 
+            console.log("✅ SIGNUP SUCCESSFUL");
+            console.log("User:", data.user);
             return { success: true };
         } catch (err) {
-            return { success: false, error: err.message };
+            const message = err.message || "Signup failed. Please try again.";
+            console.error("❌ SIGNUP FAILED:", message);
+            console.error("Error details:", err);
+            setError(message);
+            return { success: false, error: message };
         } finally {
             setIsLoading(false);
         }

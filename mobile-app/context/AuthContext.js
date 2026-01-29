@@ -3,8 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext(null);
 
-// API base URL - update this to your backend URL
-const API_URL = 'http://192.168.0.101:5000/api';
+// UPDATED: Use production backend URL
+const API_URL = 'https://neuro-ai-3ipn.onrender.com/api';
+
+console.log('AuthContext initialized with API_URL:', API_URL);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -64,6 +66,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
+    console.log('=== LOGIN ATTEMPT (Context) ===');
+    console.log('Email:', email);
+    console.log('URL:', `${API_URL}/auth/login`);
+    
     setIsLoading(true);
     setError(null);
 
@@ -76,7 +82,9 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
@@ -89,9 +97,11 @@ export const AuthProvider = ({ children }) => {
       setToken(data.token);
       setUser(data.user);
 
+      console.log('✅ LOGIN SUCCESSFUL (Context)');
       return { success: true };
     } catch (err) {
       const message = err.message || 'Login failed. Please try again.';
+      console.error('❌ LOGIN FAILED (Context):', message);
       setError(message);
       return { success: false, error: message };
     } finally {
@@ -100,6 +110,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = async (name, email, password, phoneNumber, childAge, region, problemDescription) => {
+    console.log('=== SIGNUP ATTEMPT (Context) ===');
+    console.log('URL:', `${API_URL}/auth/register`);
+    console.log('Data:', { name, email, phoneNumber, childAge, region, problemDescription });
+    
     setIsLoading(true);
     setError(null);
 
@@ -120,7 +134,9 @@ export const AuthProvider = ({ children }) => {
         }),
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Signup failed');
@@ -133,9 +149,11 @@ export const AuthProvider = ({ children }) => {
       setToken(data.token);
       setUser(data.user);
 
+      console.log('✅ SIGNUP SUCCESSFUL (Context)');
       return { success: true };
     } catch (err) {
       const message = err.message || 'Signup failed. Please try again.';
+      console.error('❌ SIGNUP FAILED (Context):', message);
       setError(message);
       return { success: false, error: message };
     } finally {

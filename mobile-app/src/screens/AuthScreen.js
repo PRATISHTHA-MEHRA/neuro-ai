@@ -57,6 +57,10 @@ const AuthScreen = ({ route }) => {
   const { login } = useAuth();
 
   const handleSubmit = async () => {
+    console.log('=== AUTH SUBMIT ===');
+    console.log('Mode:', mode);
+    console.log('Form data:', formData);
+    
     setError('');
     setLoading(true);
 
@@ -64,17 +68,16 @@ const AuthScreen = ({ route }) => {
       let result;
 
       if (mode === 'login') {
-        // For login, just use email
         if (!formData.email || !formData.password) {
+          console.warn('Missing email or password');
           setError('Please enter email and password');
           setLoading(false);
           return;
         }
 
-        result = await login({
-          email: formData.email,
-          password: formData.password,
-        });
+        console.log('Calling login...');
+        result = await login(formData.email, formData.password);
+        console.log('Login result:', result);
       } else {
         // Validate signup fields
         if (
@@ -86,6 +89,7 @@ const AuthScreen = ({ route }) => {
           !formData.region ||
           !formData.problemDescription
         ) {
+          console.warn('Missing required fields');
           setError('Please fill in all required fields');
           setLoading(false);
           return;
@@ -93,24 +97,28 @@ const AuthScreen = ({ route }) => {
 
         const age = parseInt(formData.childAge);
         if (age < 1 || age > 18) {
+          console.warn('Invalid age:', age);
           setError('Child age must be between 1 and 18');
           setLoading(false);
           return;
         }
 
-        result = await login({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          phoneNumber: formData.phoneNumber,
-          childAge: age,
-          region: formData.region,
-          problemDescription: formData.problemDescription,
-          joinedDate: new Date().toISOString(),
-        });
+        console.log('Calling signup...');
+        // FIXED: Call signup with correct parameters
+        result = await signup(
+          formData.name,
+          formData.email,
+          formData.password,
+          formData.phoneNumber,
+          age,
+          formData.region,
+          formData.problemDescription
+        );
+        console.log('Signup result:', result);
       }
 
       if (result.success) {
+        console.log('✅ Authentication successful, navigating to Learning...');
         navigation.navigate('Learning');
         setFormData({
           name: '',
@@ -122,9 +130,11 @@ const AuthScreen = ({ route }) => {
           problemDescription: '',
         });
       } else {
+        console.error('❌ Authentication failed:', result.error);
         setError(result.error || 'Authentication failed');
       }
     } catch (err) {
+      console.error('❌ Unexpected error:', err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
