@@ -13,7 +13,8 @@
             "bundleIdentifier": "com.neuroai.mobile"
         },
         "android": {
-            "package": "com.neuroai.mobile"
+            "package": "com.neuroai.mobile",
+            "abiFilters": ["arm64-v8a"]
         },
         "web": {},
         "scheme": "neuroai"
