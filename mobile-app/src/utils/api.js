@@ -80,19 +80,37 @@ export const recordAudio = async (expectedWord, targetPhonemes = []) => {
 
     console.log('Whisper model ready at:', modelInfo.localPath);
 
-    // Start recording
-    await speechRecognition.startRecording();
-    console.log('Recording... (3 seconds)');
+    let transcription = '';
+    let transcriptionSucceeded = false;
     
-    // Wait 3 seconds
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Stop and transcribe
-    console.log('Stopping and transcribing...');
-    const transcription = await speechRecognition.stopRecordingAndTranscribe();
-    console.log('✅ Transcription:', transcription);
+    try {
+      await speechRecognition.startRecording();
+      console.log('Recording... (3 seconds)');
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      console.log('Stopping and transcribing...');
+      transcription = await speechRecognition.stopRecordingAndTranscribe();
+      transcriptionSucceeded = true;
+      console.log('✅ Transcription:', transcription);
+    } catch (transcriptionError) {
+      console.error('❌ Transcription error:', transcriptionError.message);
+      transcriptionSucceeded = false;
+      transcription = '';
+    }
 
-    // Analyze with AI
+    // If transcription failed, return honest feedback
+    if (!transcriptionSucceeded) {
+      return {
+        transcription: '(audio not captured)',
+        percentage: 0,
+        feedback: `⚠️ We couldn't process your recording. This is a known issue with audio format compatibility.\n\nPlease try:\n1. Speaking clearly into the microphone\n2. Ensuring you're in a quiet environment\n3. Holding the phone closer\n\nThe word was: "${expectedWord}"`,
+        timestamp: new Date().toISOString(),
+        error: true,
+      };
+    }
+
+    // Analyze with AI only if we have real transcription
     console.log('Analyzing with AI...');
     const analysisResult = await phonemeAnalyzer.analyzePhonemes(
       transcription,

@@ -1,7 +1,7 @@
 import { RunAnywhere } from "@runanywhere/core";
 import { Audio } from "expo-av";
-import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import runtimeManager from "./runtime";
 
 class SpeechRecognitionService {
@@ -24,7 +24,6 @@ class SpeechRecognitionService {
         await Audio.setAudioModeAsync({
             allowsRecordingIOS: true,
             playsInSilentModeIOS: true,
-            staysActiveInBackground: false,
         });
 
         this.initialized = true;
@@ -35,14 +34,47 @@ class SpeechRecognitionService {
         await this.initialize();
 
         try {
+            if (this.recording) {
+                try {
+                    await this.recording.stopAndUnloadAsync();
+                } catch (e) {}
+                this.recording = null;
+            }
+
             const recording = new Audio.Recording();
             
-            // Use HIGH_QUALITY preset - simpler and more reliable
-            await recording.prepareToRecordAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY
-            );
-            
+            // Try to create WAV-compatible recording
+            // Note: Android may still create 3GP despite these settings
+            const recordingOptions = {
+                isMeteringEnabled: true,
+                android: {
+                    extension: '.wav',
+                    outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+                    audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+                    sampleRate: 16000,
+                    numberOfChannels: 1,
+                    bitRate: 256000,
+                },
+                ios: {
+                    extension: '.wav',
+                    outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+                    audioQuality: Audio.IOSAudioQuality.MAX,
+                    sampleRate: 16000,
+                    numberOfChannels: 1,
+                    bitRate: 256000,
+                    linearPCMBitDepth: 16,
+                    linearPCMIsBigEndian: false,
+                    linearPCMIsFloat: false,
+                },
+                web: {
+                    mimeType: 'audio/wav',
+                    bitsPerSecond: 256000,
+                },
+            };
+
+            await recording.prepareToRecordAsync(recordingOptions);
             await recording.startAsync();
+            
             this.recording = recording;
             console.log("✅ Recording started");
             return recording;
@@ -57,38 +89,55 @@ class SpeechRecognitionService {
             throw new Error("No active recording");
         }
 
+        let uri = null;
+        
         try {
             console.log('Stopping recording...');
             await this.recording.stopAndUnloadAsync();
-            const uri = this.recording.getURI();
+            uri = this.recording.getURI();
+            this.recording = null;
 
             console.log("Recording URI:", uri);
 
-            // Convert URI to absolute path for Android
+            const fileInfo = await FileSystem.getInfoAsync(uri);
+            console.log("File size:", fileInfo.size, "bytes");
+            console.log("File extension:", uri.split('.').pop());
+
+            if (!fileInfo.exists || fileInfo.size < 1000) {
+                throw new Error("Recording file is too small or empty");
+            }
+
+            // Check if file is WAV format
+            const extension = uri.split('.').pop().toLowerCase();
+            if (extension !== 'wav') {
+                console.warn(`⚠️ Audio file is ${extension}, not WAV. Whisper may not work.`);
+            }
+
             let audioPath = uri;
             if (Platform.OS === 'android') {
-                // Remove file:// prefix for Android
                 audioPath = uri.replace('file://', '');
             }
 
-            console.log("Audio path for transcription:", audioPath);
+            console.log("Attempting transcription...");
 
-            // Transcribe using RunAnywhere with simple options
             const result = await RunAnywhere.transcribeFile(audioPath, {
                 language: 'en',
             });
 
-            console.log("✅ Transcription:", result.text);
-            console.log("Confidence:", result.confidence);
-            console.log("Duration:", result.duration, "seconds");
-
-            this.recording = null;
+            console.log("✅ Transcription successful:", result.text);
             return result.text.toLowerCase().trim();
+
         } catch (error) {
-            console.error("❌ Transcription failed:", error);
-            console.error("Error details:", error.message);
-            this.recording = null;
-            throw error;
+            console.error("❌ Transcription failed:", error.message);
+            
+            if (uri) {
+                try {
+                    await FileSystem.deleteAsync(uri, { idempotent: true });
+                } catch (e) {}
+            }
+            
+            // Throw error instead of faking transcription
+            throw new Error("TRANSCRIPTION_FAILED: " + error.message);
         }
     }
 
@@ -97,13 +146,9 @@ class SpeechRecognitionService {
             try {
                 this.recording.stopAndUnloadAsync();
                 this.recording = null;
-            } catch (error) {
-                console.error("Error cleaning up:", error);
-            }
+            } catch (error) {}
         }
     }
 }
-
-
 
 export default new SpeechRecognitionService();
